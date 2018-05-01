@@ -1,0 +1,25 @@
+private void processFrame(object sender, EventArgs e)
+{
+            cap.Retrieve(frame, 0);          //mengambil gambar dari device webcam ke-0
+            Mat convertClr = new Mat();      //menginisialisasi variabel baru untuk imageBox konversi warna ke grayscale
+            Mat gBlur = new Mat();           //menginisialisasi variabel baru untuk imageBox mengatur keburaman gambar
+
+            CvInvoke.CvtColor(frame, convertClr, ColorConversion.Bgr2Gray);    //mengonversi warna imageBox1 menjadi grayscale dan outputnya di imageBox2
+
+      Mat copy = frame.Clone();  //menggandakan variabel kamera webcam  
+
+            CvInvoke.GaussianBlur(convertClr, gBlur, new Size(9, 9), 0, 0);   //mengatur keburaman gambar sebesar 9 kali dan outputnya di imageBox4
+
+            CircleF[] circles = CvInvoke.HoughCircles(gBlur, HoughType.Gradient, minRad, maxRad, lowThr, accThr, 5);  //mendeteksi bentuk lingkaran dengan metode houghcircle
+
+            foreach (CircleF circle in circles)
+            {
+                CvInvoke.Circle(copy, new Point((int)circle.Center.X, (int)circle.Center.Y), radiusThr, new MCvScalar(blue, green, red), thick, LineType.EightConnected, 0);  //menggambarkan setiap lingkaran yang sudah terdeteksi dan outputnya di imageBox3
+            }
+
+ imageBox1.Image = frame;       //input kamera webcam
+ imageBox2.Image = convertClr;  //output dari rubah warna ke grayscale
+ imageBox3.Image = copy;        //kloningan imageBox1 dan sudah diberi penggambaran dari deteksi lingkaran
+ imageBox4.Image = gBlur;       //output dari pengaturan keburaman gambar
+        
+}

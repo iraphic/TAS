@@ -1,0 +1,101 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using DirectShowLib;
+using Emgu.Util; //libraryEmguCV
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using Emgu.CV.UI;
+
+namespace deteksi
+{
+    public partial class Form1 : Form
+    {
+        private VideoCapture cap = null; //membaca kamera webcam
+        Mat frame = new Mat();      //menginisialisasi variabel kamera
+
+        double lowThr;
+        double highThr;
+        double accThr;
+        double dist,
+               param,
+               minRad,
+               maxRad,
+               rad1;
+        int radiusThr,
+            thick,
+            blue,
+            green,
+            red,      //menginisalisasi variabel dari setiap parameter 
+            gb;                 
+
+        public Form1()
+        { 
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            cap = new VideoCapture(0);  //memilih device webcam ke-0
+            cap.ImageGrabbed += processFrame;        //mengambil gambar dari webcam dan masuk ke fungsi processFrame
+            cap.Start();  //mulai menyalakan webcam
+            timer1.Start();  //mulai menyalakan timer
+        }
+
+        private void processFrame(object sender, EventArgs e)
+        {
+            cap.Retrieve(frame, 0);          //mengambil gambar dari device webcam ke-0
+            Mat convertClr = new Mat();      //menginisialisasi variabel baru untuk imageBox konversi warna ke grayscale
+            Mat gBlur = new Mat();           //menginisialisasi variabel baru untuk imageBox mengatur keburaman gambar
+
+            CvInvoke.CvtColor(frame, convertClr, ColorConversion.Bgr2Gray);    //mengonversi warna imageBox1 menjadi grayscale dan outputnya di imageBox2
+
+      Mat copy = frame.Clone();  //menggandakan variabel kamera webcam  
+
+            CvInvoke.GaussianBlur(convertClr, gBlur, new Size(9, 9), 0, 0);   //mengatur keburaman gambar sebesar 9 kali dan outputnya di imageBox4
+
+            CircleF[] circles = CvInvoke.HoughCircles(gBlur, HoughType.Gradient, minRad, maxRad, lowThr, accThr, 5);  //mendeteksi bentuk lingkaran dengan metode houghcircle
+
+            foreach (CircleF circle in circles)
+            {
+                CvInvoke.Circle(copy, new Point((int)circle.Center.X, (int)circle.Center.Y), radiusThr, new MCvScalar(blue, green, red), thick, LineType.EightConnected, 0);  //menggambarkan setiap lingkaran yang sudah terdeteksi dan outputnya di imageBox3
+            }
+
+ imageBox1.Image = frame;       //input kamera webcam
+ imageBox2.Image = convertClr;  //output dari rubah warna ke grayscale
+ imageBox3.Image = copy;        //kloningan imageBox1 dan sudah diberi penggambaran dari deteksi lingkaran
+ imageBox4.Image = gBlur;       //output dari pengaturan keburaman gambar
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            lowThr = trackThr.Value;  
+            accThr = accThrBar.Value;
+            radiusThr = radiusBar.Value;
+            thick = thickBar.Value;
+            minRad = minRadiusBar.Value;
+            maxRad = maxRadiusBar.Value;
+            blue = blueBar.Value;
+            green = greenBar.Value;
+            red = redBar.Value;  //inisialisasi variabel dari trackBar
+
+            label12.Text = lowThr.ToString();  
+            label13.Text = accThr.ToString();
+            label14.Text = radiusThr.ToString();
+            label15.Text = thick.ToString();
+            label10.Text = minRad.ToString();
+            label11.Text = maxRad.ToString();
+            label16.Text = blue.ToString();
+            label17.Text = green.ToString();
+            label18.Text = red.ToString();  //memberi output angka yang tertera di setiap trackBar
+        }
+    }
+}

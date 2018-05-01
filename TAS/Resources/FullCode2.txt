@@ -1,0 +1,278 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using DirectShowLib;
+using Emgu.Util;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using Emgu.CV.UI;
+
+namespace TAS
+{
+    public partial class Main : Form
+    {
+        private Capture cap = null;
+        Mat frame = new Mat();
+        List<KeyValuePair<int, string>> listCameraData = new List<KeyValuePair<int, string>>();
+        int cameraIndex;
+        double width = 0;
+        double height = 0;
+
+        double lowThr;
+        double highThr;
+        double accThr;
+        double dist,
+               param,
+               minRad,
+               maxRad;
+        int radiusThr,
+            thick,
+            blue,
+            green,
+            red,
+            ov, 
+            gb;
+        int hitung;
+        
+        string method = "";
+        bool cameraSel = false;
+
+        bool status = false;
+
+        public Main()
+        {
+            InitializeComponent();
+        }
+
+        public void readIndex()
+        {
+            listCameraData = new List<KeyValuePair<int, string>>();
+            DsDevice[] systemCameras = DsDevice.GetDevicesOfCat(FilterCategory.VideoInputDevice);
+            int deviceIndex = 0;
+            foreach (DirectShowLib.DsDevice systemCamera in systemCameras)
+            {
+                listCameraData.Add(new KeyValuePair<int, string>(deviceIndex, systemCamera.Name));
+                cameraListMenu.DropDownItems.Add(systemCamera.Name + " - (" + deviceIndex + ")", null, indexSelect);
+                deviceIndex++;
+            }
+        }
+
+        private void indexSelect(object sender, EventArgs e)
+        {
+            ToolStripMenuItem menu = (ToolStripMenuItem)sender;
+            try
+            {
+                cameraIndex = cameraListMenu.DropDownItems.IndexOf(menu);
+                menu.Checked = true;
+                cameraSel = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void resolutionSelect(object sender, EventArgs e)
+        {
+            x256Res.Checked = false;
+            x480Res.Checked = false;
+            x780Res.Checked = false;
+            x912Res.Checked = false;
+            x1200Res.Checked = false;
+
+            ToolStripMenuItem menu = (ToolStripMenuItem)sender;
+            menu.Checked = true;
+            string[] res = menu.ToString().Split('x');
+            width = Convert.ToDouble(res[0]);
+            height = Convert.ToDouble(res[1]);
+        }
+
+        private void methodeCelect(object sender, EventArgs e)
+        {
+            houghCircleToolStripMenuItem.Checked = false;
+            ToolStripMenuItem menu = (ToolStripMenuItem)sender;
+            menu.Checked = true;
+            method = menu.ToString();
+            groupBox3.Text = method;
+            groupBox7.Text = " Parameter " + method;
+        }
+
+        private void processFrame(object sender, EventArgs e)
+        {
+            cap.Retrieve(frame, 0);
+
+            Mat convertClr = new Mat();
+            Mat gBlur = new Mat();
+
+            CvInvoke.CvtColor(frame, convertClr, ColorConversion.Bgr2Gray);
+
+            Mat copy = frame.Clone();
+
+            //UMat pyrDown = new UMat();
+            //CvInvoke.PyrDown(convertClr, pyrDown);
+            //CvInvoke.PyrUp(pyrDown, convertClr);
+            
+            CvInvoke.GaussianBlur(convertClr, gBlur, new Size(gb, gb), 0, 0);
+            
+            CircleF[] circles = CvInvoke.HoughCircles(gBlur, HoughType.Gradient, minRad, maxRad, lowThr, accThr, ov);
+
+            foreach (CircleF circle in circles)
+            {
+                CvInvoke.Circle(copy, new Point((int)circle.Center.X, (int)circle.Center.Y), radiusThr, new MCvScalar(blue, green, red), thick, LineType.EightConnected, 0);
+                hitung++;
+            }
+
+            label21.Invoke((MethodInvoker)(() => label21.Text = hitung.ToString()));
+            hitung = 0;
+            status = true;
+            
+            imageBox1.Image = frame;
+            imageBox2.Image = convertClr;
+            imageBox3.Image = copy;
+            imageBox4.Image = gBlur;
+        }
+
+        private void Main_Load(object sender, EventArgs e)
+        {
+            /*double gb = new double();
+            for (double i = 1.0; i >= 2.0; i -= 2.0)
+            {
+                gb = Math.Round(i, 1);
+                domainUpDown1.Items.Add(gb);
+            }
+            domainUpDown1.SelectedItem = gb;
+            
+            int gb = new int();*/
+
+            domainUpDown1.Text = "21";
+            gb = Convert.ToInt32(domainUpDown1.Text);
+
+            readIndex();
+
+            startBtn.Enabled = true;
+            pauseBtn.Enabled = false;
+            stopBtn.Enabled = false;
+            viewCodeBtn.Enabled = false;
+        }
+
+        private void startBtn_Click(object sender, EventArgs e)
+        {
+            if (width == 0 && height == 0)
+            {
+                MessageBox.Show("Pilih resolusi kamera yang diinginkan!");
+            }
+            if (method == "")
+            {
+                MessageBox.Show("Pilih metode deteksi yang diinginkan!");
+            }
+            if (cameraSel == false)
+            {
+                MessageBox.Show("Pilih kamera yang akan digunakan!");
+            }
+
+            if (width != 0 && height != 0 && method != "" && cameraSel != false)
+            {
+                cap = new Capture(cameraIndex);
+                cap.SetCaptureProperty(CapProp.FrameWidth, width);
+                cap.SetCaptureProperty(CapProp.FrameHeight, height);
+                cap.ImageGrabbed += processFrame;
+                cap.Start();
+                timer1.Start();
+                startBtn.Enabled = false;
+                pauseBtn.Enabled = true;
+                stopBtn.Enabled = true;
+                viewCodeBtn.Enabled = true;
+            }
+        }
+
+        private void pauseBtn_Click(object sender, EventArgs e)
+        {
+            cap.Pause();
+            timer1.Stop();
+            startBtn.Enabled = true;
+            pauseBtn.Enabled = false;
+            stopBtn.Enabled = false;
+        }
+
+        private void exitMenu_Click(object sender, EventArgs e)
+        {
+            Environment.Exit(0);
+            this.Close();
+        }
+
+        private void pictureBox1_MouseEnter(object sender, EventArgs e)
+        {
+            toolTip1.SetToolTip(pictureBox1, "Gaussian Blur hanya bisa dengan angka ganjil");
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            //double ratio = Convert.ToDouble(domainUpDown1.Text);
+            //double gb = Convert.ToDouble(domainUpDown1.Text);
+            lowThr = trackThr.Value;
+            accThr = accThrBar.Value;
+            //highThr = lowThr * ratio;  
+            radiusThr = radiusBar.Value;
+            thick = thickBar.Value;
+            minRad = minRadiusBar.Value;
+            maxRad = maxRadiusBar.Value;
+            blue = blueBar.Value;
+            green = greenBar.Value;
+            red = redBar.Value;
+            gb = Convert.ToInt32(domainUpDown1.Text);
+            ov = ovBar.Value;
+
+            label3.Text = lowThr.ToString();
+            label4.Text = accThr.ToString();
+            label7.Text = radiusThr.ToString();
+            label9.Text = thick.ToString();
+            label12.Text = minRad.ToString();
+            label13.Text = maxRad.ToString();
+            label15.Text = blue.ToString();
+            label17.Text = green.ToString();
+            label19.Text = red.ToString();
+            label1.Text = ov.ToString();
+            
+            if (status == true)
+            {
+                hitung += 0;
+            }
+            else
+            {
+                hitung = 0;
+            }
+            
+        }
+
+        private void stopBtn_Click(object sender, EventArgs e)
+        {
+            Application.Restart();
+        }
+
+        private void viewCodeBtn_Click(object sender, EventArgs e)
+        {
+            viewCode tampil = new viewCode();
+            tampil.Show();
+        }
+
+        private void aboutMenu_Click(object sender, EventArgs e)
+        {
+            about tampil2 = new about();
+            tampil2.Show();
+        }
+
+        private void instructionMenu_Click_1(object sender, EventArgs e)
+        {
+            instruction tampil3 = new instruction();
+            tampil3.Show();
+        }
+    }
+}

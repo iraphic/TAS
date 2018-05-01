@@ -1,0 +1,34 @@
+private void processFrame(object sender, EventArgs e)
+        {
+            cap.Retrieve(frame, 0);
+
+            Mat convertClr = new Mat();
+            Mat gBlur = new Mat();
+
+            CvInvoke.CvtColor(frame, convertClr, ColorConversion.Bgr2Gray);
+
+            Mat copy = frame.Clone();
+
+            //UMat pyrDown = new UMat();
+            //CvInvoke.PyrDown(convertClr, pyrDown);
+            //CvInvoke.PyrUp(pyrDown, convertClr);
+            
+            CvInvoke.GaussianBlur(convertClr, gBlur, new Size(gb, gb), 0, 0);
+            
+            CircleF[] circles = CvInvoke.HoughCircles(gBlur, HoughType.Gradient, minRad, maxRad, lowThr, accThr, ov);
+
+            foreach (CircleF circle in circles)
+            {
+                CvInvoke.Circle(copy, new Point((int)circle.Center.X, (int)circle.Center.Y), radiusThr, new MCvScalar(blue, green, red), thick, LineType.EightConnected, 0);
+                hitung++;
+            }
+
+            label21.Invoke((MethodInvoker)(() => label21.Text = hitung.ToString()));
+            hitung = 0;
+            status = true;
+            
+            imageBox1.Image = frame;
+            imageBox2.Image = convertClr;
+            imageBox3.Image = copy;
+            imageBox4.Image = gBlur;
+        }
